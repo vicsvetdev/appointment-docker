@@ -1,0 +1,55 @@
+version: '2.1'
+
+services:
+  appointment-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "${ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${DATABASE}"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_USER}"
+    ports:
+      - 3306:3306
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
+    volumes:
+      - "./schema.sql:/docker-entrypoint-initdb.d/schema.sql"
+    networks:
+      - backend
+
+  appointment-back:
+    image: vicsvetdev/appointment-back
+    restart: on-failure
+    depends_on:
+      appointment-mysql:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    environment:
+      DATABASE_HOST: "appointment-mysql"
+      SPRING_DATASOURCE_USERNAME: "${DB_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${DB_USER}"
+      SPRING_DATASOURCE_URL: "${DATASOURCE_URL}"
+      DATABASE_PORT: "3306"
+      JWT_TOKEN_SECRET: "${JWT_KEY}"
+      JWT_TOKEN_EXPIRED: "${JWT_EXPIRE}"
+      CORS_ALLOWED_ORIGINS: "${ALLOWED_ORIGIN}"
+    networks:
+      - backend
+      - frontend
+
+  appointment-front:
+    image: vicsvetdev/appointment-front
+    restart: on-failure
+    depends_on:
+      - appointment-back
+    ports:
+      - 3000:3000
+    networks:
+      - frontend
+
+networks:
+  backend:
+  frontend:
